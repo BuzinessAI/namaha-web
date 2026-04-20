@@ -35,18 +35,18 @@ function BillingPage() {
   const hasCoupons =
     (stateCoupons && stateCoupons.length > 0) || (coupon != null);
 
-  const parseAmount = (value) => {
+  const parseAmount = useCallback((value) => {
     if (!value) return 0;
 
     // remove ₹ , commas, spaces
     return Number(String(value).replace(/[₹,\s]/g, ""));
-  };
+  }, []);
 
   /**
    * Meta Pixel expects `value` as a finite number in major currency units (INR), not a formatted string.
    * Missing/NaN values trigger "InitiateCheckout price missing or incorrect format" in Events Manager.
    */
-  const normalizeMetaPixelValue = (value) => {
+  const normalizeMetaPixelValue = useCallback((value) => {
     if (value == null || value === "") return null;
     const n =
       typeof value === "number" && Number.isFinite(value)
@@ -54,26 +54,40 @@ function BillingPage() {
         : parseAmount(value);
     if (!Number.isFinite(n) || n < 0) return null;
     return Math.round(n * 100) / 100;
-  };
+  }, [parseAmount]);
 
-  const trackMetaPixelEvent = (eventName, params = {}) => {
-    if (typeof window !== "undefined" && window.fbq) {
+  const dispatchMetaPixelTrack = useCallback((eventName, payload, retries = 4) => {
+    if (typeof window === "undefined") return;
+    if (typeof window.fbq === "function") {
       try {
-        const payload = { ...params };
-        if (payload.value != null) {
-          const v = normalizeMetaPixelValue(payload.value);
-          if (v != null) payload.value = v;
-          else delete payload.value;
-        }
-        if (!payload.currency || typeof payload.currency !== "string") {
-          payload.currency = "INR";
-        }
         window.fbq("track", eventName, payload);
       } catch (e) {
         console.warn("Meta Pixel track error", eventName, e);
       }
+      return;
     }
-  };
+    // fbevents.js is async; retry briefly so checkout events aren't dropped on slower loads.
+    if (retries > 0) {
+      window.setTimeout(() => {
+        dispatchMetaPixelTrack(eventName, payload, retries - 1);
+      }, 700);
+    } else {
+      console.warn("Meta Pixel unavailable after retries", eventName, payload);
+    }
+  }, []);
+
+  const trackMetaPixelEvent = useCallback((eventName, params = {}) => {
+    const payload = { ...params };
+    if (payload.value != null) {
+      const v = normalizeMetaPixelValue(payload.value);
+      if (v != null) payload.value = v;
+      else delete payload.value;
+    }
+    if (!payload.currency || typeof payload.currency !== "string") {
+      payload.currency = "INR";
+    }
+    dispatchMetaPixelTrack(eventName, payload);
+  }, [dispatchMetaPixelTrack, normalizeMetaPixelValue]);
 
   const packagePrice = parseAmount(selectedPackage?.price);
 
@@ -113,7 +127,7 @@ function BillingPage() {
         };
       })
       .filter(Boolean);
-  }, [isChadhavaFlow, routeAddons, puja?.addOns, pujaAddonQuantities]);
+  }, [isChadhavaFlow, routeAddons, puja?.addOns, pujaAddonQuantities, parseAmount]);
 
   const computedAddonsTotal = useMemo(() => {
     if (isChadhavaFlow) {
@@ -127,7 +141,7 @@ function BillingPage() {
       }, 0);
     }
     return resolvedAddons.reduce((sum, a) => sum + (a.total || 0), 0);
-  }, [isChadhavaFlow, addonsTotal, resolvedAddons]);
+  }, [isChadhavaFlow, addonsTotal, resolvedAddons, parseAmount]);
 
   const passedGrandTotal = parseAmount(grandTotal);
 
@@ -579,8 +593,33 @@ function BillingPage() {
 
       const orderId =
         res.data.razorpayOrderId || res.data.orderId || res.data.order_id;
+      // Backend responses vary across flows:
+      // - `amount` is often rupees in this API
+      // - `order.amount` / `amountPaise` style fields are paise
+      // Normalize to paise before opening Razorpay.
+      const backendAmountPaiseDirect = Number(
+        res.data.amountPaise ||
+          res.data.orderAmountPaise ||
+          res.data.razorpayAmountPaise ||
+          res.data.razorpay_order_amount ||
+          res.data?.order?.amount ||
+          0
+      );
+      const backendAmountRupees = parseAmount(
+        res.data.amount || res.data.orderAmount || res.data.razorpayAmount || 0
+      );
+      const backendOrderAmountPaise =
+        Number.isFinite(backendAmountPaiseDirect) && backendAmountPaiseDirect > 0
+          ? Math.round(backendAmountPaiseDirect)
+          : Number.isFinite(backendAmountRupees) && backendAmountRupees > 0
+            ? Math.round(backendAmountRupees * 100)
+            : null;
       if (res.data.success && orderId) {
-        loadRazorpay(orderId, finalPayable);
+        loadRazorpay(
+          orderId,
+          finalPayable,
+          backendOrderAmountPaise
+        );
       } else {
         showToast(res.data.message || "Failed to create order. Please try again.");
       }
@@ -799,7 +838,7 @@ function BillingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional narrow deps for recovery
   }, [puja?.id, puja?._id]);
 
-  const loadRazorpay = (orderId, amount) => {
+  const loadRazorpay = (orderId, amount, backendOrderAmountPaise = null) => {
     if (!window.Razorpay) {
       showToast("Razorpay SDK not loaded. Please refresh and try again.");
       return;
@@ -819,25 +858,46 @@ function BillingPage() {
     }
     setPendingRazorpayOrderId(orderId);
 
-    // Meta Pixel: InitiateCheckout — send only numeric `value` + ISO `currency` (Meta flags invalid ROAS if value is missing/wrong type).
-    // Avoid optional catalog fields here unless they match your catalog; mismatched `contents`/`item_price` often drives "invalid price" warnings.
-    const checkoutValue = normalizeMetaPixelValue(amount);
-    if (typeof window !== "undefined" && typeof window.fbq === "function" && checkoutValue != null) {
-      try {
-        window.fbq("track", "InitiateCheckout", {
-          value: checkoutValue,
-          currency: "INR",
-        });
-      } catch (e) {
-        console.warn("Meta Pixel InitiateCheckout error", e);
-      }
-    } else if (checkoutValue == null) {
+    const normalizedRupees = normalizeMetaPixelValue(amount);
+    const fallbackPaise = Number.isFinite(normalizedRupees)
+      ? Math.round(normalizedRupees * 100)
+      : 0;
+    const orderAmountPaise =
+      Number.isFinite(backendOrderAmountPaise) && backendOrderAmountPaise > 0
+        ? Math.round(backendOrderAmountPaise)
+        : fallbackPaise;
+    const checkoutValue =
+      orderAmountPaise > 0 ? Math.round(orderAmountPaise) / 100 : null;
+
+    if (
+      Number.isFinite(backendOrderAmountPaise) &&
+      backendOrderAmountPaise > 0 &&
+      fallbackPaise > 0 &&
+      Math.round(backendOrderAmountPaise) !== fallbackPaise
+    ) {
+      console.warn(
+        "Razorpay amount mismatch: backend order amount differs from frontend total",
+        {
+          backendOrderAmountPaise,
+          frontendAmountPaise: fallbackPaise,
+          orderId,
+        }
+      );
+    }
+
+    // Meta Pixel: InitiateCheckout — send numeric rupee value + ISO currency.
+    if (checkoutValue != null) {
+      trackMetaPixelEvent("InitiateCheckout", {
+        value: checkoutValue,
+        currency: "INR",
+      });
+    } else {
       console.warn("Meta Pixel InitiateCheckout skipped: invalid checkout amount", amount);
     }
 
     const options = {
       key: process.env.REACT_APP_RAZORPAY_KEY_ID,
-      amount: amount * 100, // ✅ paise
+      amount: orderAmountPaise, // always integer paise; prefer backend order amount
       currency: "INR",
       order_id: orderId,
       name: "Shri Aaum",
