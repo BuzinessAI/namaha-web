@@ -203,7 +203,12 @@ function BillingPage() {
   }, [isChadhavaFlow, prasadam]);
 
   const couponApplied = appliedCoupon != null;
+  const isSpecialCouponApplied = couponApplied && Boolean(appliedCoupon?.specialCoupon);
   const finalPayable = couponApplied ? finalAmount : Math.max(subtotal, 0);
+
+  useEffect(() => {
+    if (isSpecialCouponApplied && prasadam) setPrasadam(false);
+  }, [isSpecialCouponApplied, prasadam]);
 
   // Sync finalAmount when subtotal changes and no coupon applied
   useEffect(() => {
@@ -1232,7 +1237,7 @@ function BillingPage() {
     {postPaymentLoading && (
       <div className="billing-post-payment-overlay" role="status" aria-live="polite">
         <div className="billing-post-payment-spinner" aria-hidden="true" />
-        <p className="billing-post-payment-text">Processing payment…</p>
+        <p className="billing-post-payment-text">Please wait, Do not Refresh the page</p>
       </div>
     )}
     {showInvoiceModal && invoiceData && (
@@ -1442,10 +1447,14 @@ function BillingPage() {
               <input
                 type="checkbox"
                 checked={prasadam}
+                disabled={isSpecialCouponApplied}
                 onChange={(e) => setPrasadam(e.target.checked)}
               />
               <span>Prasadam (Free)</span>
             </label>
+          ) : null}
+          {!isChadhavaFlow && isSpecialCouponApplied ? (
+            <p className="billing-prasadam-note">For this coupon, prasadam is not free.</p>
           ) : null}
 
           {/* ✅ GRAND TOTAL */}
