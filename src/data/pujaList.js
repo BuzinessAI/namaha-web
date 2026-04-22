@@ -10,7 +10,7 @@ export const computePujaIsPastEvent = (eventDateRaw) => {
   return raw > 0 && raw <= Date.now();
 };
 
-/** Admin/API tri-state: true = sold, false = force bookable, null|undefined = use event date only. */
+/** Admin/API policy: true = sold/blocked; false|null|undefined = fallback to event date-time check. */
 export const normalizeApiSoldTag = (value) => {
   if (value === true || value === 1) return true;
   if (value === false || value === 0) return false;
@@ -21,15 +21,72 @@ export const normalizeApiSoldTag = (value) => {
   return null;
 };
 
+const IST_TIMEZONE = "Asia/Kolkata";
+const IST_OFFSET_MINUTES = 330; // UTC+05:30 (no DST)
+
+const getIstDatePartsFromDate = (dateObj) => {
+  if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: IST_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(dateObj);
+  const day = Number(parts.find((p) => p.type === "day")?.value || 0);
+  const month = Number(parts.find((p) => p.type === "month")?.value || 0);
+  const year = Number(parts.find((p) => p.type === "year")?.value || 0);
+  if (!year || !month || !day) return null;
+  return { year, month, day };
+};
+
+/**
+ * Build absolute timestamp using date + time interpreted strictly in Asia/Kolkata.
+ * Returns 0 when either date or time is missing/invalid.
+ */
+export const getEventDateTimeRawInIST = (eventDateValue, eventTimeValue) => {
+  const ev = eventDateValue ? new Date(eventDateValue) : null;
+  const eventTimeStr = String(eventTimeValue || "").trim();
+  if (!(ev instanceof Date) || Number.isNaN(ev.getTime()) || !eventTimeStr) return 0;
+  const m = eventTimeStr.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return 0;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  const istDateParts = getIstDatePartsFromDate(ev);
+  if (
+    !istDateParts ||
+    !Number.isFinite(hh) ||
+    !Number.isFinite(mm) ||
+    hh < 0 ||
+    hh > 23 ||
+    mm < 0 ||
+    mm > 59
+  ) {
+    return 0;
+  }
+  return (
+    Date.UTC(
+      istDateParts.year,
+      istDateParts.month - 1,
+      istDateParts.day,
+      hh,
+      mm,
+      0,
+      0
+    ) -
+    IST_OFFSET_MINUTES * 60 * 1000
+  );
+};
+
 function computeUserSoldOutFromPolicyAndDate(policy, eventDateRaw) {
-  if (policy === false) return false;
   if (policy === true) return true;
   return computePujaIsPastEvent(eventDateRaw);
 }
 
 /**
- * User-site: booking/list "sold" state. Trusts `soldTagPolicy` when set by mapper;
- * otherwise normalizes legacy `soldTag` string/bool. Never POST this from booking UI.
+ * User-site booking/list "sold" state:
+ * - `soldTag/soldTagPolicy === true` always blocks booking.
+ * - Otherwise (false/null/missing), fallback is event date-time past check.
+ * Never POST this from booking UI.
  */
 export function isPujaUserSoldOut(puja) {
   if (!puja || typeof puja !== "object") return false;
@@ -99,9 +156,7 @@ const mapChadhavaOfferingsToAddOns = (offerings = []) =>
 const getChadhavaItemEventDateRaw = (item) => {
   if (!item || typeof item !== "object") return 0;
   const raw = item.eventdate || item.eventDate || item.dateText || item.dateRange;
-  if (!raw) return 0;
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+  return getEventDateTimeRawInIST(raw, item.eventTime);
 };
 
 const mergeMatchedChadhavaOfferings = async (puja) => {
@@ -180,24 +235,33 @@ const mergeMatchedChadhavaOfferings = async (puja) => {
 const mapApiPujaToPUJA_LIST = (apiPuja) => {
   const ev = apiPuja.eventDate ? new Date(apiPuja.eventDate) : null;
   const fallback = apiPuja.createdAt ? new Date(apiPuja.createdAt) : null;
-  const d =
+  const displayDateObj =
     ev && !isNaN(ev.getTime())
       ? ev
       : fallback && !isNaN(fallback.getTime())
-      ? fallback
-      : null;
+        ? fallback
+        : null;
+
+  // Booking fallback must use a combined eventDate + eventTime only.
+  // If either piece is missing/invalid, keep eventDateRaw = 0 (do not date-only block).
+  const eventDateTimeRaw = getEventDateTimeRawInIST(apiPuja.eventDate, apiPuja.eventTime);
 
   const eventPieces = (() => {
-    if (!d) return { eventDate: null, eventDateRaw: 0, date: "—" };
-    const formatted = d.toLocaleDateString("en-GB", {
+    if (!displayDateObj) return { eventDate: null, eventDateRaw: 0, date: "—" };
+    const formatted = new Intl.DateTimeFormat("en-GB", {
+      timeZone: IST_TIMEZONE,
       day: "numeric",
       month: "short",
       year: "numeric",
-    });
-    return { eventDate: formatted, eventDateRaw: d.getTime(), date: formatted };
+    }).format(displayDateObj);
+    return {
+      eventDate: formatted,
+      eventDateRaw: eventDateTimeRaw,
+      date: formatted,
+    };
   })();
 
-  const soldTagPolicy = normalizeApiSoldTag(apiPuja.soldTag);
+  const soldTagPolicy = normalizeApiSoldTag(apiPuja.soldTag ?? apiPuja.soldTagPolicy);
   const isPastEvent = computeUserSoldOutFromPolicyAndDate(
     soldTagPolicy,
     eventPieces.eventDateRaw

@@ -5,6 +5,7 @@ import {
   PUJA_LIST_GRID_COLUMNS,
   normalizeApiSoldTag,
   isPujaUserSoldOut,
+  getEventDateTimeRawInIST,
 } from '../../data/pujaList';
 import './Chadhava.css';
 import Footer from '../Footer/Footer';
@@ -24,9 +25,7 @@ const normalizeCard = (item = {}) => {
   const rawId = item.id || item._id || item.shortTitle || item.slug || item.title;
   const idOrShortTitle = item.id || item._id || item.shortTitle || item.slug;
   const rawDate = item.eventdate || item.eventDate || item.dateText || item.dateRange;
-  const ev = rawDate ? new Date(rawDate) : null;
-  const eventDateRaw =
-    ev && !Number.isNaN(ev.getTime()) ? ev.getTime() : 0;
+  const eventDateRaw = getEventDateTimeRawInIST(rawDate, item.eventTime);
   const soldTagPolicy = normalizeApiSoldTag(item.soldTag ?? item.soldTagPolicy);
   const card = {
     id: String(rawId || Math.random()),

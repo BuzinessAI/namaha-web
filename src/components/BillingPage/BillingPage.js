@@ -306,13 +306,33 @@ function BillingPage() {
 
   // ================= DEVOTEE FORM =================
   const [form, setForm] = useState(
-    location.state?.form ?? {
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-    }
+    (() => {
+      const incoming = location.state?.form || {};
+      const legacyAddress = incoming.address || "";
+      return {
+        name: incoming.name || "",
+        email: incoming.email || "",
+        phone: incoming.phone || "",
+        streetAddress: incoming.streetAddress || legacyAddress || "",
+        city: incoming.city || "",
+        state: incoming.state || "",
+        pincode: incoming.pincode || "",
+      };
+    })()
   );
+
+  const composedAddress = useMemo(() => {
+    const street = String(form.streetAddress || "").trim();
+    const city = String(form.city || "").trim();
+    const stateName = String(form.state || "").trim();
+    const pincode = String(form.pincode || "").trim();
+    return [street, city, stateName, pincode].filter(Boolean).join(", ");
+  }, [form.streetAddress, form.city, form.state, form.pincode]);
+
+  const getDevoteeDetailsPayload = useCallback(() => ({
+    ...form,
+    address: composedAddress,
+  }), [form, composedAddress]);
 
   // ================= PARTICIPANTS =================
   const [participants, setParticipants] = useState(
@@ -362,11 +382,30 @@ function BillingPage() {
   // Autosave when devotee form is filled. Name from form or Participant 1 (name field is hidden).
   const isFormValidForPending = useCallback(() => {
     const devoteeName = form.name?.trim() || participants[0]?.name?.trim();
-    if (!devoteeName || !form.phone || !form.address?.trim()) return false;
+    if (
+      !devoteeName ||
+      !form.phone ||
+      !form.streetAddress?.trim() ||
+      !form.city?.trim() ||
+      !form.state?.trim() ||
+      !/^\d{6}$/.test(String(form.pincode || ""))
+    ) {
+      return false;
+    }
     if (!/^\d{10}$/.test(form.phone)) return false;
     if (!puja?.id && !puja?._id) return false;
     return true;
-  }, [form.name, form.phone, form.address, participants, puja?.id, puja?._id]);
+  }, [
+    form.name,
+    form.phone,
+    form.streetAddress,
+    form.city,
+    form.state,
+    form.pincode,
+    participants,
+    puja?.id,
+    puja?._id
+  ]);
 
   useEffect(() => {
     if (!isFormValidForPending() || loading) return;
@@ -378,7 +417,11 @@ function BillingPage() {
       name: devoteeName,
       phone: form.phone,
       email: form.email,
-      address: form.address,
+      streetAddress: form.streetAddress,
+      city: form.city,
+      state: form.state,
+      pincode: form.pincode,
+      address: composedAddress,
       participants,
       prasadam,
       couponCode: appliedCoupon?.code || coupon?.code || null,
@@ -403,7 +446,7 @@ function BillingPage() {
         couponCode: appliedCoupon?.code || coupon?.code || null,
         isCouponApplied: couponApplied,
         discountAmount: couponApplied ? discountAmount : 0,
-        devoteeDetails: form,
+        devoteeDetails: getDevoteeDetailsPayload(),
         participants,
         appliedCoupon: couponApplied && appliedCoupon ? appliedCoupon : null,
         grandTotal: finalPayable,
@@ -470,6 +513,8 @@ function BillingPage() {
     prasadam,
     bookingBasePath,
     authToken,
+    composedAddress,
+    getDevoteeDetailsPayload,
   ]);
 
   const handleChange = (e) => {
@@ -479,6 +524,12 @@ function BillingPage() {
     if (name === "phone") {
       const digitsOnly = value.replace(/\D/g, "");
       setForm((prev) => ({ ...prev, phone: digitsOnly.slice(0, 10) }));
+      return;
+    }
+
+    if (name === "pincode") {
+      const digitsOnly = value.replace(/\D/g, "");
+      setForm((prev) => ({ ...prev, pincode: digitsOnly.slice(0, 6) }));
       return;
     }
 
@@ -507,9 +558,15 @@ function BillingPage() {
       }
     }
 
-    // Validate required fields (Name is hidden; Phone and Address required)
-    if (!form.phone || !form.address) {
-      showToast("Please fill Phone Number and Address");
+    // Validate required fields (Name hidden; Phone + full address fields required)
+    if (
+      !form.phone ||
+      !form.streetAddress?.trim() ||
+      !form.city?.trim() ||
+      !form.state?.trim() ||
+      !String(form.pincode || "").trim()
+    ) {
+      showToast("Please fill Phone Number, Street Address, City, State and Pincode");
       paymentStartedRef.current = false;
       return;
     }
@@ -517,6 +574,11 @@ function BillingPage() {
     // Phone: must be exactly 10 digits
     if (!/^\d{10}$/.test(form.phone)) {
       showToast("Please enter a valid 10-digit phone number.");
+      paymentStartedRef.current = false;
+      return;
+    }
+    if (!/^\d{6}$/.test(String(form.pincode || ""))) {
+      showToast("Please enter a valid 6-digit pincode.");
       paymentStartedRef.current = false;
       return;
     }
@@ -559,7 +621,7 @@ function BillingPage() {
         discountAmount: couponApplied ? discountAmount : 0,
 
         devoteeDetails: {
-          ...form,
+          ...getDevoteeDetailsPayload(),
           name: form.name?.trim() || participants[0]?.name?.trim() || "",
         },
         participants: participants,
@@ -700,7 +762,7 @@ function BillingPage() {
       name: form.name?.trim() || participants[0]?.name?.trim() || "",
       email: form.email || "",
       phone: form.phone,
-      address: form.address || "",
+      address: composedAddress || "",
     },
     participants: participants.map((p) => ({
       name: p.name || "",
@@ -1517,11 +1579,35 @@ function BillingPage() {
             maxLength={10}
             pattern="\d{10}"
           />
-          <textarea
-            name="address"
-            placeholder="Address *"
-            value={form.address}
+          <input
+            name="streetAddress"
+            placeholder="Street Address *"
+            value={form.streetAddress}
             onChange={handleChange}
+            required
+          />
+          <input
+            name="city"
+            placeholder="City *"
+            value={form.city}
+            onChange={handleChange}
+            required
+          />
+          <input
+            name="state"
+            placeholder="State *"
+            value={form.state}
+            onChange={handleChange}
+            required
+          />
+          <input
+            type="text"
+            name="pincode"
+            placeholder="Pincode *"
+            value={form.pincode}
+            onChange={handleChange}
+            maxLength={6}
+            pattern="\d{6}"
             required
           />
         </div>
