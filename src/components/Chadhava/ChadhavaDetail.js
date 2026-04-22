@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../lib/instance';
-import { normalizeApiSoldTag, isPujaUserSoldOut } from '../../data/pujaList';
+import { normalizeApiSoldTag, isPujaUserSoldOut, getEventDateTimeRawInIST } from '../../data/pujaList';
 import './ChadhavaDetail.css';
 import Footer from '../Footer/Footer';
 
@@ -85,11 +85,7 @@ function ChadhavaDetail() {
   const { isBookingBlocked } = useMemo(() => {
     if (!detail) return { isBookingBlocked: false };
     const raw = detail.eventdate || detail.eventDate || detail.dateRange;
-    let eventDateRaw = 0;
-    if (raw) {
-      const d = new Date(raw);
-      eventDateRaw = Number.isNaN(d.getTime()) ? 0 : d.getTime();
-    }
+    const eventDateRaw = getEventDateTimeRawInIST(raw, detail.eventTime);
     const soldTagPolicy = normalizeApiSoldTag(detail.soldTag ?? detail.soldTagPolicy);
     const ctx = { eventDateRaw, soldTagPolicy };
     return { isBookingBlocked: isPujaUserSoldOut(ctx) };
