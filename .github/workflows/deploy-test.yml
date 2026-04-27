@@ -30,7 +30,9 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST_TEST }} << 'EOF'
           cd /var/lib/projects/namaha-web
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
           sudo docker system prune -af
+          docker save namaha-web -o /var/lib/projects/backups/namaha-web-$TIMESTAMP.tar
           sudo docker build -t namaha-web .
           sudo docker compose up -d
           EOF
