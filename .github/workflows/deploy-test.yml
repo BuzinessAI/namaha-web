@@ -32,8 +32,8 @@ jobs:
           cd /var/lib/projects/namaha-web
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           sudo mkdir -p /var/lib/projects/backups
-          sudo docker save namaha-web -o /var/lib/projects/backups/namaha-web-$TIMESTAMP.tar
+          sudo docker save namaha-web:latest -o /var/lib/projects/backups/namaha-web-$TIMESTAMP.tar
           sudo docker system prune -af
-          sudo docker build -t namaha-web .
+          sudo docker build -t namaha-web:latest .
           sudo docker compose up -d
           EOF
