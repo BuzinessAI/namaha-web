@@ -1,6 +1,6 @@
 services:
   backend:
-    image: namaha-web
+    image: namaha-web:latest
     container_name: namaha-web
     restart: always
     ports:
