@@ -29,6 +29,7 @@ jobs:
       - name: Build & Run Docker on Server
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST_TEST }} << 'EOF'
+          set -e
           cd /var/lib/projects/namaha-web
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           sudo mkdir -p /var/lib/projects/backups
