@@ -4,6 +4,82 @@ import { getPujaById, isPujaUserSoldOut } from "../../data/pujaList";
 import "./PujaDetail.css";
 import Footer from "../Footer/Footer";
 
+const renderRichText = (text) => {
+  if (!text || typeof text !== "string") return null;
+
+  const lines = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/\t/g, "  ").trimEnd());
+
+  const blocks = [];
+  let currentList = [];
+  let pBuffer = "";
+
+  const flushParagraph = () => {
+    const content = pBuffer.trim();
+    if (!content) return;
+    blocks.push({ type: "p", content });
+    pBuffer = "";
+  };
+
+  const flushList = () => {
+    if (currentList.length <= 0) return;
+    blocks.push({ type: "ul", items: currentList });
+    currentList = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const bulletMatch = line.match(/^([•*·-])\s*(.+)$/);
+    if (bulletMatch) {
+      flushParagraph();
+      currentList.push(bulletMatch[2].trim());
+      continue;
+    }
+
+    flushList();
+    pBuffer = pBuffer ? `${pBuffer}\n${line}` : line;
+  }
+
+  flushParagraph();
+  flushList();
+
+  return (
+    <>
+      {blocks.map((b, i) => {
+        if (b.type === "ul") {
+          return (
+            <ul key={`ul-${i}`}>
+              {b.items.map((item, idx) => (
+                <li key={`li-${i}-${idx}`}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={`p-${i}`}>
+            {b.content.split("\n").map((part, idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 ? <br /> : null}
+                {part}
+              </React.Fragment>
+            ))}
+          </p>
+        );
+      })}
+    </>
+  );
+};
+
 const SECTION_TABS = [
   { id: "packages", label: "Packages" },
   { id: "benefits", label: "Benefits" },
@@ -388,7 +464,7 @@ function PujaDetail() {
                   }}
                   ref={aboutTextRef}
                 >
-                  <span dangerouslySetInnerHTML={{ __html: puja.aboutPuja }} />
+                  {renderRichText(puja.aboutPuja)}
                 </div>
                 <div className="pd-details-about-actions">
                   {aboutVisibleLines <= collapsedLines && aboutHasOverflow && (
@@ -648,12 +724,7 @@ function PujaDetail() {
           <div className="pd-section-content">
             <h2 className="pd-temple-name">{puja.templeName}</h2>
             <div className="pd-temple-text">
-              <div
-                dangerouslySetInnerHTML={{
-                  __html:
-                    puja.templeDescription || "Temple details loading...",
-                }}
-              />
+              {renderRichText(puja.templeDescription || "Temple details loading...")}
             </div>
           </div>
         </section>
