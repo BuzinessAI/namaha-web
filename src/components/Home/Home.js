@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import axiosInstance from "../../lib/instance";
 import "./Home.css";
 
 const TRUST_STRIP_ITEMS = [
@@ -8,82 +9,132 @@ const TRUST_STRIP_ITEMS = [
   { id: 3, icon: "shield", text: "Prasad at your Doorstep in 7-10 days" },
 ];
 
-const HERO_SLIDES = [
-  {
-    id: "pooja",
-    title: "Shri Aaum Special Pooja",
-    description:
-      "Experience divine rituals, sacred pujas, and personalized sankalps that bring peace, protection, and abundance into your life- from anywhere in the world.",
-    ctaLabel: "Book Pooja",
-    ctaTo: "/puja",
-    image: "/images/Kshetra%20Element%202.png",
-    imageAlt: "Sacred pooja thali, deepam and offerings",
-  },
-  {
-    id: "chadava",
-    title: "Shri Aaum Sacred Chadava",
-    description:
-      "Offer sacred chadavas at powerful kshetras. Invite divine grace, protection, and abundance into your life.",
-    ctaLabel: "Offer Chadava",
-    ctaTo: "/chadhava",
-    image: "/images/Puja%20Element%201.png",
-    imageAlt: "Sacred temple kshetra illustration",
-  },
-];
-
 function Home() {
   const [activeSlide, setActiveSlide] = useState(0);
+  const [heroSlides, setHeroSlides] = useState([]);
 
   useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await axiosInstance.get("/hero-banner");
+        const data = res?.data;
+        const rawSlides = Array.isArray(data?.banners)
+          ? data.banners
+          : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.slides)
+            ? data.slides
+            : Array.isArray(data?.data?.banners)
+              ? data.data.banners
+            : Array.isArray(data?.data?.items)
+              ? data.data.items
+              : Array.isArray(data?.data?.slides)
+                ? data.data.slides
+                : Array.isArray(data)
+                  ? data
+                  : data && typeof data === "object"
+                    ? [data]
+                    : [];
+
+        const sortedSlides = [...rawSlides].sort((a, b) => {
+          const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return aTime - bTime; // oldest -> newest
+        });
+
+        const mapped = sortedSlides
+          .filter((s) => s && typeof s === "object" && s.isActive === true)
+          .map((s, idx) => ({
+            id: String(s.slideId || s.id || s._id || `hero-${idx}`),
+            title: s.title || "Shri Aaum",
+            description: s.subtitle || s.description || "",
+            ctaLabel: s.ctaLabel || "Explore",
+            ctaTo: s.ctaTo || "/",
+            image:
+              s.image ||
+              s.images?.[0]?.url ||
+              s.images?.[0] ||
+              "",
+            imageAlt: s.imageAlt || s.title || "Hero banner",
+          }))
+          .filter((s) => s.image);
+
+        if (!mounted) return;
+        setHeroSlides(mapped);
+      } catch {
+        if (!mounted) return;
+        setHeroSlides([]);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    // keep active slide in range when slides change
+    setActiveSlide((prev) => {
+      const len = heroSlides.length || 0;
+      if (len <= 0) return 0;
+      return prev >= len ? 0 : prev;
+    });
+  }, [heroSlides.length]);
+
+  useEffect(() => {
+    if (heroSlides.length <= 0) return undefined;
     const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+      setActiveSlide((prev) => (prev + 1) % heroSlides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [heroSlides.length]);
 
   return (
     <div className="App">
       <main>
         <div className="home-hero-viewport">
           {/* ================= HERO ================= */}
-          <section id="home" className="hero-modern">
-            <div className="hero-modern-carousel">
-              {HERO_SLIDES.map((slide, index) => (
-                <div
-                  key={slide.id}
-                  className={`hero-modern-slide ${index === activeSlide ? "hero-modern-slide-active" : ""}`}
-                >
-                  <div className="hero-modern-inner">
-                    <div className="hero-modern-content">
-                      <div className="hero-modern-block">
-                        <h1>{slide.title}</h1>
-                        <p>{slide.description}</p>
-                        <Link to={slide.ctaTo} className="hero-btn hero-btn-solid">
-                          {slide.ctaLabel}
-                        </Link>
+          {heroSlides.length > 0 && (
+            <section id="home" className="hero-modern">
+              <div className="hero-modern-carousel">
+                {heroSlides.map((slide, index) => (
+                  <div
+                    key={slide.id}
+                    className={`hero-modern-slide ${index === activeSlide ? "hero-modern-slide-active" : ""}`}
+                  >
+                    <div className="hero-modern-inner">
+                      <div className="hero-modern-content">
+                        <div className="hero-modern-block">
+                          <h1>{slide.title}</h1>
+                          <p>{slide.description}</p>
+                          <Link to={slide.ctaTo} className="hero-btn hero-btn-solid">
+                            {slide.ctaLabel}
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                    <div className="hero-modern-images" aria-hidden="true">
-                      <div className="hero-modern-image-card">
-                        <img src={slide.image} alt={slide.imageAlt} className="hero-modern-image" />
+                      <div className="hero-modern-images" aria-hidden="true">
+                        <div className="hero-modern-image-card">
+                          <img src={slide.image} alt={slide.imageAlt} className="hero-modern-image" />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              <div className="hero-modern-dots">
-                {HERO_SLIDES.map((slide, index) => (
-                  <button
-                    key={slide.id}
-                    type="button"
-                    className={`hero-modern-dot ${index === activeSlide ? "hero-modern-dot-active" : ""}`}
-                    onClick={() => setActiveSlide(index)}
-                    aria-label={`Show ${slide.title}`}
-                  />
                 ))}
+                <div className="hero-modern-dots">
+                  {heroSlides.map((slide, index) => (
+                    <button
+                      key={slide.id}
+                      type="button"
+                      className={`hero-modern-dot ${index === activeSlide ? "hero-modern-dot-active" : ""}`}
+                      onClick={() => setActiveSlide(index)}
+                      aria-label={`Show ${slide.title}`}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Trust strip */}
           <div className="trust-strip-wrap">

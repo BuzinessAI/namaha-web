@@ -5,6 +5,82 @@ import { normalizeApiSoldTag, isPujaUserSoldOut, getEventDateTimeRawInIST } from
 import './ChadhavaDetail.css';
 import Footer from '../Footer/Footer';
 
+const renderRichText = (text) => {
+  if (!text || typeof text !== 'string') return null;
+
+  const lines = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((l) => l.replace(/\t/g, '  ').trimEnd());
+
+  const blocks = [];
+  let currentList = [];
+  let pBuffer = '';
+
+  const flushParagraph = () => {
+    const content = pBuffer.trim();
+    if (!content) return;
+    blocks.push({ type: 'p', content });
+    pBuffer = '';
+  };
+
+  const flushList = () => {
+    if (currentList.length <= 0) return;
+    blocks.push({ type: 'ul', items: currentList });
+    currentList = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const bulletMatch = line.match(/^([•*·-])\s*(.+)$/);
+    if (bulletMatch) {
+      flushParagraph();
+      currentList.push(bulletMatch[2].trim());
+      continue;
+    }
+
+    flushList();
+    pBuffer = pBuffer ? `${pBuffer}\n${line}` : line;
+  }
+
+  flushParagraph();
+  flushList();
+
+  return (
+    <>
+      {blocks.map((b, i) => {
+        if (b.type === 'ul') {
+          return (
+            <ul key={`ul-${i}`}>
+              {b.items.map((item, idx) => (
+                <li key={`li-${i}-${idx}`}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={`p-${i}`}>
+            {b.content.split('\n').map((part, idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 ? <br /> : null}
+                {part}
+              </React.Fragment>
+            ))}
+          </p>
+        );
+      })}
+    </>
+  );
+};
+
 const FAQS = [
   {
     question: 'What is Chadhava and how does it benefit devotees?',
@@ -357,7 +433,7 @@ function ChadhavaDetail() {
                 </div>
                 {detail?.description ? (
                   <div className="chd-details-about">
-                    <p
+                    <div
                       className="chd-details-about-text"
                       style={{
                         WebkitLineClamp: aboutVisibleLines,
@@ -365,8 +441,8 @@ function ChadhavaDetail() {
                       }}
                       ref={aboutTextRef}
                     >
-                      {detail.description}
-                    </p>
+                      {renderRichText(detail.description)}
+                    </div>
                     <div className="chd-details-about-actions">
                       {aboutVisibleLines <= collapsedLines && aboutHasOverflow ? (
                         <button
@@ -527,10 +603,7 @@ function ChadhavaDetail() {
             {templeDescription ? (
               <div className="chd-temple-block">
                 <h3 className="chd-temple-name">{templeName}</h3>
-                <div
-                  className="chd-temple-text"
-                  dangerouslySetInnerHTML={{ __html: templeDescription }}
-                />
+                <div className="chd-temple-text">{renderRichText(templeDescription)}</div>
               </div>
             ) : (
               <p className="chd-empty-block">Temple details will be updated soon.</p>
