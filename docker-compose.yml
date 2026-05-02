@@ -1,6 +1,6 @@
 services:
   backend:
-    image: namaha-web
+    image: 651767347273.dkr.ecr.ap-south-1.amazonaws.com/shriaaum/namaha-web:${VERSION}
     container_name: namaha-web
     restart: always
     ports:

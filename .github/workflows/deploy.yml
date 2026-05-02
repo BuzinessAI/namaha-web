@@ -1,82 +1,55 @@
-name: namaha-web
+name: frontend build push deploy
 
 on:
   push:
     branches:
       - live
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    env:
-      AWS_REGION: ap-south-1
-      ECR_REGISTRY: 651767347273.dkr.ecr.ap-south-1.amazonaws.com
-
     steps:
+      - uses: actions/checkout@v4
 
-      # Checkout repository
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      # Configure AWS credentials
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
 
-      # Login to AWS ECR
       - name: Login to ECR
         run: |
-          aws ecr get-login-password --region $AWS_REGION \
-          | docker login --username AWS --password-stdin $ECR_REGISTRY
+          aws ecr get-login-password --region ap-south-1 \
+          | docker login --username AWS --password-stdin 651767347273.dkr.ecr.ap-south-1.amazonaws.com
 
-      # Generate image version
-      - name: Set Version
+      - name: Set version
         run: echo "VERSION=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      # Build and push docker image
-      - name: Build and Push Admin Image
+
+      - name: Build Web
         run: |
-          docker build -t namaha-web:$VERSION .
-          docker tag namaha-web:$VERSION $ECR_REGISTRY/namaha-web:$VERSION
-          docker push $ECR_REGISTRY/namaha-web:$VERSION
-          echo "WEB_VERSION=$VERSION" >> $GITHUB_ENV
+          docker build --no-cache -t namaha-web:$VERSION .
+          docker tag namaha-web:$VERSION 651767347273.dkr.ecr.ap-south-1.amazonaws.com/shriaaum/namaha-web:$VERSION
+          docker push 651767347273.dkr.ecr.ap-south-1.amazonaws.com/shriaaum/namaha-web:$VERSION
+    #       echo "VERSION=$VERSION" > .env.deploy
 
-      # Create env file for server
-      - name: Create current.env
-        run: |
-          echo "WEB_VERSION=${WEB_VERSION}" > current.env
+    #   - name: Setup SSH
+    #     uses: webfactory/ssh-agent@v0.9.0
+    #     with:
+    #       ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # Setup SSH agent
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY_LIVE }}
-
-      # Upload env file to server
-      - name: Upload env file
-        run: |
-          rsync -avz \
-          -e "ssh -o StrictHostKeyChecking=no" \
-          current.env \
-          ${{ secrets.SSH_USER_LIVE }}@${{ secrets.SSH_HOST_LIVE }}:/var/lib/projects/namaha-web/current.env
-
-      # Deploy container
-      - name: Deploy on Server
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER_LIVE }}@${{ secrets.SSH_HOST_LIVE }} << EOF
-            set -e
-
-            cd /var/lib/projects/namaha-web
-
-            aws ecr get-login-password --region ap-south-1 \
-            | docker login --username AWS --password-stdin 651767347273.dkr.ecr.ap-south-1.amazonaws.com
-
-            docker compose --env-file current.env pull
-            docker compose --env-file current.env up -d
-
-            echo "Deployment completed successfully"
-          EOF
+    #   - name: Deploy Web
+    #     run: |
+    #       scp -o StrictHostKeyChecking=no .env.deploy docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/lib/projects/namaha-web/
+    #       ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+    #         set -e
+    #         cd /var/lib/projects/namaha-web
+    #         sudo docker system prune -af
+    #         export AWS_REGION=ap-south-1
+    #         export ECR_REGISTRY=651767347273.dkr.ecr.ap-south-1.amazonaws.com
+    #         echo \$(aws ecr get-login-password --region \$AWS_REGION) | sudo docker login --username AWS --password-stdin \$ECR_REGISTRY
+    #         sudo docker compose --env-file .env.deploy up -d
+    #       EOF
