@@ -1,7 +1,7 @@
 import React from "react";
 import "./WhatsAppFAB.css";
 
-const WHATSAPP_NUMBER = "9059926363";
+const WHATSAPP_NUMBER = "9177709684";
 const WHATSAPP_DEFAULT_MESSAGE = encodeURIComponent(
   "Hello, I need more information"
 );
