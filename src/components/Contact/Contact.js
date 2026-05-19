@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './Contact.css';
 import Footer from '../Footer/Footer';
 
-const WHATSAPP_NUMBER = "9059926363";
+const WHATSAPP_NUMBER = "9177709684";
 
 function Contact() {
   const [formData, setFormData] = useState({
@@ -77,7 +77,7 @@ function Contact() {
                 <div>
                   <strong>Customer Support</strong>
                   <p>Available via whatsapp</p>
-                  <a href="https://wa.me/9059926363" target="_blank" rel="noopener noreferrer"> 90599 26363 (WhatsApp)</a>
+                  <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer"> 9177709684 (WhatsApp)</a>
                 </div>
               </div>
             </div>
