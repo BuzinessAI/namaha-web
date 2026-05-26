@@ -282,6 +282,16 @@ function Layout({ children }) {
                                 Contact
                             </Link>
                         </li>
+                        <li>
+                            <a
+                                href="https://shriaaum.store/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={closeMenu}
+                            >
+                                ShriAaum.store
+                            </a>
+                        </li>
                         {/* <li><a href="#library" onClick={closeMenu}>Library</a></li> */}
                     </ul>
                     <div className="nav-right">
