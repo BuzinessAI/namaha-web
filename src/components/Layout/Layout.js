@@ -289,7 +289,7 @@ function Layout({ children }) {
                                 rel="noopener noreferrer"
                                 onClick={closeMenu}
                             >
-                                ShriAaum.store
+                                Store
                             </a>
                         </li>
                         {/* <li><a href="#library" onClick={closeMenu}>Library</a></li> */}
