@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./PujaList.css";
 import Footer from "../Footer/Footer";
 import { usePujaList, isPujaUserSoldOut } from "../../data/pujaList";
@@ -36,7 +36,8 @@ const normalizeBenefitTitles = (benefits) => {
 };
 
 function PujaList() {
-  const { pujas: pujaList, loading } = usePujaList();
+  const { pujas: pujaList, loading, error } = usePujaList();
+  const navigate = useNavigate();
 
   // Upcoming first, then sold-out; keep date-wise order within each group.
   const sortedPujas = [...pujaList].sort((a, b) => {
@@ -100,6 +101,16 @@ function PujaList() {
     );
   }
 
+  if (error) {
+    return (
+      <main className="puja-list-page">
+        <div className="pl-loading-overlay">
+          <p className="pl-loading-text">Unable to load pujas right now. Please try again later.</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="puja-list-page">
       {/* ================= PUJA LIST ================= */}
@@ -118,26 +129,23 @@ function PujaList() {
             <div
               key={puja.id}
               className="pl-card"
+              onClick={() => !isPastEvent && navigate(`/puja/${puja.id}`)}
+              style={{ cursor: isPastEvent ? 'default' : 'pointer' }}
+              onMouseEnter={() => puja.bannerUrls?.forEach(b => { if (b?.url) new Image().src = b.url; })}
             >
 
-              <div
-                className={`pl-card-banner ${puja.imageClass}`}
-                style={
-                  puja.bannerUrls?.[0]
-                    ? {
-                        backgroundImage: `url(${puja.bannerUrls[0].url})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        backgroundRepeat: "no-repeat",
-                        backgroundColor: "#1a1a1a",
-                      }
-                    : {}
-                }
-              > 
+              <div className={`pl-card-banner ${puja.imageClass}`}>
+                {puja.bannerUrls?.[0] && (
+                  <img
+                    src={puja.bannerUrls[0].url}
+                    alt=""
+                    aria-hidden="true"
+                    className="pl-banner-img-fade"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                )}
                 <div className="pl-card-overlay" />
-                {/* <span className={`pl-card-tag ${puja.tagColor}`}>
-                  {puja.specialTag}
-                </span> */}
                 {isPastEvent ? (
                   <span className="pl-top-choice-tag sold-out">SOLD OUT</span>
                 ) : (

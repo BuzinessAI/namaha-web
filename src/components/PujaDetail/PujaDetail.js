@@ -86,6 +86,31 @@ const SECTION_TABS = [
   { id: "temple", label: "Temple Details" },
   { id: "faqs", label: "FAQs" },
 ];
+// --- Rating helpers (deterministic per item id) ---
+const hashStr = (str) => {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+};
+const RATING_OPTIONS = [4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9];
+const getDynamicRating = (id) =>
+  RATING_OPTIONS[hashStr(String(id || "x")) % RATING_OPTIONS.length];
+const getDynamicReviewCount = (id) =>
+  80 + (hashStr(String(id || "x") + "r") % 420);
+
+const AVATAR_PALETTE = ["#ea580c", "#7c3aed", "#0891b2", "#15803d", "#b45309", "#be123c"];
+const AVATAR_INITIALS = ["A", "D", "K", "M", "P", "R", "S", "V"];
+const getRatingAvatars = (id, count = 4) => {
+  const h = hashStr(String(id || "x") + "av");
+  return Array.from({ length: count }, (_, i) => ({
+    initial: AVATAR_INITIALS[(h + i * 5) % AVATAR_INITIALS.length],
+    bg: AVATAR_PALETTE[(h + i * 3) % AVATAR_PALETTE.length],
+  }));
+};
+// ---
+
 const PACKAGE_BULLETS = [
   "The Puja will be performed by qualified Veda Pandits by following the right Puja Vidhi.",
   "The Prasad will be delivered to your door step within 7-10 days and the puja video will be sent to your whatsapp within 24-48 hrs.",
@@ -424,6 +449,9 @@ function PujaDetail() {
                       src={imgUrl}
                       alt={`Slide ${i + 1}`}
                       className="pd-carousel-image"
+                      loading={i === 0 ? "eager" : "lazy"}
+                      decoding={i === 0 ? "sync" : "async"}
+                      fetchpriority={i === 0 ? "high" : "low"}
                     />
                   </div>
                 ))}
@@ -508,17 +536,40 @@ function PujaDetail() {
                 <span className="pd-countdown-label-sm">Secs</span>
               </div>
             </div>
-            <div className="pd-rating-row" aria-label="Rating: 5 out of 5 stars">
-              <span className="pd-rating-row-label">Rating:</span>
-              <span className="pd-rating-row-stars" aria-hidden="true">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <span key={i} className="pd-rating-star">
-                    ★
-                  </span>
-                ))}
-              </span>
-              <span className="pd-rating-row-suffix">5 stars</span>
-            </div>
+            {(() => {
+              const rating = getDynamicRating(puja.id);
+              const reviewCount = getDynamicReviewCount(puja.id);
+              const avatars = getRatingAvatars(puja.id);
+              const fullStars = Math.floor(rating);
+              const hasHalf = rating - fullStars >= 0.3;
+              return (
+                <div className="pd-rating-row" aria-label={`Rating: ${rating} out of 5 stars`}>
+                  <div className="pd-rating-avatars">
+                    {avatars.map((av, i) => (
+                      <span key={i} className="pd-rating-avatar" style={{ background: av.bg }}>
+                        {av.initial}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="pd-rating-meta">
+                    <span className="pd-rating-stars-wrap" aria-hidden="true">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <span
+                          key={s}
+                          className={`pd-rating-star ${
+                            s <= fullStars ? "filled" : hasHalf && s === fullStars + 1 ? "half" : "empty"
+                          }`}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </span>
+                    <span className="pd-rating-score">{rating.toFixed(1)}</span>
+                    <span className="pd-rating-count">({reviewCount} ratings)</span>
+                  </div>
+                </div>
+              );
+            })()}
             {isBookingBlocked ? (
               <div className="pd-booking-closed" role="alert">
                 <span className="pd-booking-closed-icon">🔒</span>
@@ -642,6 +693,8 @@ function PujaDetail() {
                   className={`pd-package-card ${
                     selectedPackage?.id === pkg.id ? "selected" : ""
                   }`}
+                  onClick={() => !isBookingBlocked && setSelectedPackage(pkg)}
+                  style={{ cursor: isBookingBlocked ? 'default' : 'pointer' }}
                 >
                   <div
                     className="pd-package-image-wrap"
@@ -664,11 +717,12 @@ function PujaDetail() {
                       <button
                         type="button"
                         className="pd-package-read-more"
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setExpandedPackageIndex((prev) =>
                             prev === index ? null : index
-                          )
-                        }
+                          );
+                        }}
                       >
                         {expandedPackageIndex === index ? "Read less" : "Read more"}
                       </button>
@@ -677,7 +731,7 @@ function PujaDetail() {
                       type="button"
                       className={`pd-package-btn ${isBookingBlocked ? "pd-package-btn--disabled" : ""}`}
                       disabled={isBookingBlocked}
-                      onClick={() => handleBookPujaClick(pkg)}
+                      onClick={(e) => { e.stopPropagation(); handleBookPujaClick(pkg); }}
                     >
                       {isBookingBlocked ? "BOOKING CLOSED" : "BOOK PUJA"}
                     </button>
@@ -874,6 +928,44 @@ function PujaDetail() {
         </section>
       </div>
       <Footer />
+
+      {/* Mobile sticky bottom CTA — replaces bottom nav on puja detail pages */}
+      {!isBookingBlocked && (
+        <div className="pd-mobile-sticky-cta">
+          {selectedPackage ? (
+            <button
+              type="button"
+              className="pd-mobile-sticky-btn pd-mobile-sticky-btn--selected"
+              onClick={() => handleBookPujaClick(selectedPackage)}
+            >
+              <div className="pd-mobile-sticky-pkg-info">
+                <span className="pd-mobile-sticky-name">{selectedPackage.name}</span>
+                <span className="pd-mobile-sticky-price">
+                  ₹{Number(selectedPackage.price).toLocaleString("en-IN")}
+                </span>
+              </div>
+              <span className="pd-mobile-sticky-action">Book Now →</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="pd-mobile-sticky-btn pd-mobile-sticky-btn--full"
+              onClick={() => {
+                const firstPkg = getPackages(puja)[0];
+                if (firstPkg) setSelectedPackage(firstPkg);
+                scrollToSection("packages");
+              }}
+            >
+              Select puja package →
+            </button>
+          )}
+        </div>
+      )}
+      {isBookingBlocked && (
+        <div className="pd-mobile-sticky-cta pd-mobile-sticky-cta--closed">
+          <span className="pd-mobile-sticky-closed-text">🔒 Booking closed</span>
+        </div>
+      )}
     </main>
   );
 }

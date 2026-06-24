@@ -1,112 +1,136 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import Layout from './components/Layout/Layout';
-import WhatsAppFAB from './components/WhatsAppFAB/WhatsAppFAB';
-import Home from './components/Home/Home';
-import SpecialPuja from './components/SpecialPuja/SpecialPuja';
-// import ArticlesSection from './components/ArticlesSection/ArticleSection';
-import Footer from './components/Footer/Footer';
-import Faqs from './components/Faqs/Faqs';
-import PujaList from './components/PujaList/PujaList';
-import PujaDetail from './components/PujaDetail/PujaDetail';
-import Chadhava from './components/Chadhava/Chadhava';
-import ChadhavaDetail from './components/Chadhava/ChadhavaDetail';
-import Profile from './components/Profile/Profile';
-import LoginPage from './components/LoginPage/LoginPage';
-import BillingPage from './components/BillingPage/BillingPage';
-import MyBookings from './components/MyBooking/MyBooking';
-import BookingDetailsModal from './components/BookingDetailsModal/BookingDetailsModal';
-import About from './components/About/About';
-import Contact from './components/Contact/Contact';
-import WhatsAppUpdates from './components/WhatsAppUpdatesSection/WhatsAppUpdatesSection';
+
+const Home           = lazy(() => import('./components/Home/Home'));
+const SpecialPuja    = lazy(() => import('./components/SpecialPuja/SpecialPuja'));
+const WhatsAppUpdates = lazy(() => import('./components/WhatsAppUpdatesSection/WhatsAppUpdatesSection'));
+const Faqs           = lazy(() => import('./components/Faqs/Faqs'));
+const Footer         = lazy(() => import('./components/Footer/Footer'));
+const About          = lazy(() => import('./components/About/About'));
+const Contact        = lazy(() => import('./components/Contact/Contact'));
+const PujaList       = lazy(() => import('./components/PujaList/PujaList'));
+const PujaDetail     = lazy(() => import('./components/PujaDetail/PujaDetail'));
+const Chadhava       = lazy(() => import('./components/Chadhava/Chadhava'));
+const ChadhavaDetail = lazy(() => import('./components/Chadhava/ChadhavaDetail'));
+const Profile        = lazy(() => import('./components/Profile/Profile'));
+const LoginPage      = lazy(() => import('./components/LoginPage/LoginPage'));
+const BillingPage    = lazy(() => import('./components/BillingPage/BillingPage'));
+const MyBookings     = lazy(() => import('./components/MyBooking/MyBooking'));
+const BookingDetailsModal = lazy(() => import('./components/BookingDetailsModal/BookingDetailsModal'));
+const WhatsAppFAB    = lazy(() => import('./components/WhatsAppFAB/WhatsAppFAB'));
+
+const PageLoader = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+    <div style={{ width: 36, height: 36, border: '3px solid #f3e8d8', borderTopColor: '#c2410c', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
+
 function App() {
   return (
     <BrowserRouter>
-      <WhatsAppFAB />
+      <Suspense fallback={null}>
+        <WhatsAppFAB />
+      </Suspense>
       <Routes>
-      <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={
+          <Suspense fallback={<PageLoader />}>
+            <LoginPage />
+          </Suspense>
+        } />
 
         <Route path="/" element={
           <Layout>
-            <Home />
-            <SpecialPuja />
-            <WhatsAppUpdates />
-            <Faqs />
-            {/* <Reviews /> */}
-            {/* <AboutStats /> */}
-            {/* <Features /> */}
-            {/* <ArticlesSection /> */}
-            <Footer />
+            <Suspense fallback={<PageLoader />}>
+              <Home />
+              <SpecialPuja />
+              <WhatsAppUpdates />
+              <Faqs />
+              <Footer />
+            </Suspense>
           </Layout>
         } />
-
-        
 
         <Route path="/about" element={
           <Layout>
-            <About />
+            <Suspense fallback={<PageLoader />}>
+              <About />
+            </Suspense>
           </Layout>
         } />
+
         <Route path="/contact" element={
           <Layout>
-            <Contact />
+            <Suspense fallback={<PageLoader />}>
+              <Contact />
+            </Suspense>
           </Layout>
         } />
+
         <Route path="/Profile" element={
           <Layout>
-            <Profile />
+            <Suspense fallback={<PageLoader />}>
+              <Profile />
+            </Suspense>
           </Layout>
         } />
+
         <Route path="/puja" element={
           <Layout>
-            <PujaList />
+            <Suspense fallback={<PageLoader />}>
+              <PujaList />
+            </Suspense>
           </Layout>
         } />
+
         <Route path="/chadhava" element={
           <Layout>
-            <Chadhava />
+            <Suspense fallback={<PageLoader />}>
+              <Chadhava />
+            </Suspense>
           </Layout>
         } />
+
         <Route path="/chadhava/:id" element={
           <Layout>
-            <ChadhavaDetail />
+            <Suspense fallback={<PageLoader />}>
+              <ChadhavaDetail />
+            </Suspense>
           </Layout>
         } />
+
         <Route path="/puja/:id" element={
           <Layout>
-            <PujaDetail />
+            <Suspense fallback={<PageLoader />}>
+              <PujaDetail />
+            </Suspense>
           </Layout>
         } />
 
-        {
-          <Route path="/billing" element={
-            <Layout>
-              <BillingPage/>
-            </Layout>
-          } />
-          }
-          <Route path="/my-bookings" element={
-            <Layout>
-              <MyBookings/>
-            </Layout>
-          } />
-          {
-          <Route path="/booking/:id" element={
-            <Layout>
+        <Route path="/billing" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
+              <BillingPage />
+            </Suspense>
+          </Layout>
+        } />
+
+        <Route path="/my-bookings" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
+              <MyBookings />
+            </Suspense>
+          </Layout>
+        } />
+
+        <Route path="/booking/:id" element={
+          <Layout>
+            <Suspense fallback={<PageLoader />}>
               <BookingDetailsModal />
-            </Layout>
-          } />
-          }
-
-          
-
-        
-
-
-
-
-
-
-
+            </Suspense>
+          </Layout>
+        } />
       </Routes>
     </BrowserRouter>
   );

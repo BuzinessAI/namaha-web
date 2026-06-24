@@ -162,14 +162,6 @@ function BillingPage() {
     [isChadhavaFlow, selectedPackage, selectedChadhava?.title, puja?.title]
   );
 
-  // Debug: confirm values arrived
-  console.log("📦 BillingPage state received:", {
-    pujaId: puja?.id,
-    pujaTitle: puja?.title,
-    selectedChadhava,
-    selectedPackage,
-    resolvedSelectedPackage,
-  });
 
   const [appliedCoupon, setAppliedCoupon] = useState(location.state?.appliedCoupon ?? null);
   const [discountAmount, setDiscountAmount] = useState(location.state?.discountAmount ?? 0);
@@ -636,27 +628,11 @@ function BillingPage() {
         ...(prasadam && { prasadam: true }),
       };
 
-      console.log("Billing fields being passed:", {
-        devoteeDetails: payload.devoteeDetails,
-        participants: payload.participants,
-        selectedPackage: payload.selectedPackage,
-        selectedChadhava: payload.selectedChadhava,
-        grandTotal: payload.grandTotal,
-        couponCode: payload.couponCode,
-        isCouponApplied: payload.isCouponApplied,
-        discountAmount: payload.discountAmount,
-        addons: payload.addons,
-        addonsTotal: payload.addonsTotal,
-        prasadam: payload.prasadam || false,
-      });
-      console.log("🚀 Booking payload:", payload);
-
       const res = await axiosInstance.post(bookingBasePath, payload, {
         withCredentials: true,
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
       });
 
-      console.log("✅ Booking response:", res.data);
 
       const orderId =
         res.data.razorpayOrderId || res.data.orderId || res.data.order_id;
@@ -912,7 +888,6 @@ function BillingPage() {
     }
 
     const razorpayKey = process.env.REACT_APP_RAZORPAY_KEY_ID;
-    console.log("🔑 Razorpay key:", razorpayKey, "| order_id:", orderId);
 
     if (!razorpayKey) {
       showToast("Razorpay key missing. Check your .env file.");
@@ -999,7 +974,6 @@ function BillingPage() {
           return;
         }
         setPostPaymentLoading(true);
-        console.log("✅ Razorpay payment success:", response);
         // Small post-success delay helps backend/payment provider state settle
         // before first confirm call, while loader keeps user informed.
         await wait(PAYMENT_SUCCESS_PROCESSING_DELAY_MS);
@@ -1062,7 +1036,6 @@ function BillingPage() {
           paymentStartedRef.current = false;
           setLoading(false);
           setPostPaymentLoading(false);
-          console.log("Payment modal dismissed");
         },
       },
     };
@@ -1276,10 +1249,6 @@ function BillingPage() {
       const data = res.data;
 
       if (data.success) {
-        console.log(
-          "✅ Invoice sent to WhatsApp! Message ID:",
-          data.messageId
-        );
         showToast("Invoice sent to your WhatsApp! 📄", "success");
       } else {
         console.error("❌ Failed sending WhatsApp PDF:", data.message);

@@ -29,7 +29,6 @@ function LoginPage() {
     setError('');
     try {
       const res = await axiosInstance.post('/auth/send-otp', { mobile, countryCode });
-      console.log('✅ OTP Response:', res.data);
       
       if (res.data.success) {
         setStep(2);
@@ -58,7 +57,6 @@ function LoginPage() {
         countryCode,
       });
       
-      console.log('✅ Verify Response:', res.data);
       
       if (res.data.success) {
         const newToken = res.data.token;
@@ -104,7 +102,6 @@ function LoginPage() {
         email: null,
       });
       
-      console.log('✅ Profile Complete:', res.data);
       if (res.data?.user) {
         localStorage.setItem('user', JSON.stringify(res.data.user));
       }

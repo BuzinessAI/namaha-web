@@ -596,6 +596,9 @@
   gap: 0;
   width: max-content;
   animation: trust-strip-scroll 30s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .trust-strip-item {

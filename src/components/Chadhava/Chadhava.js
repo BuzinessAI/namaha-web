@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../lib/instance';
 import {
   PUJA_LIST_GRID_COLUMNS,
@@ -62,6 +62,7 @@ function Chadhava() {
   const [error, setError] = useState('');
   const [expandedCards, setExpandedCards] = useState({});
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_CARDS);
+  const navigate = useNavigate();
   const offeringsRef = useRef(null);
 
   /* Banner sizing lives in `Chadhava.css` — mirrors `PujaList.css` `.pl-card-banner` */
@@ -87,7 +88,6 @@ function Chadhava() {
         setLoading(true);
         setError('');
         const res = await axiosInstance.get('/chadhava');
-        console.log('Chadhava API response (/chadhava):', res?.data);
         const items = getItemsFromResponse(res?.data);
         if (!mounted) return;
         const mapped = items
@@ -183,18 +183,24 @@ function Chadhava() {
                   ? card.isPastEvent
                   : isPujaUserSoldOut(card);
               return (
-              <article key={card.id} className="ch-card">
-                <div
-                  className="ch-card-banner"
-                  style={
-                    card.bannerImage
-                      ? {
-                          backgroundImage: `url(${card.bannerImage})`,
-                          backgroundColor: '#000',
-                        }
-                      : undefined
-                  }
-                >
+              <article
+                key={card.id}
+                className="ch-card"
+                onClick={() => !isPastEvent && navigate(`/chadhava/${encodeURIComponent(card.idOrShortTitle || card.id)}`)}
+                style={{ cursor: isPastEvent ? 'default' : 'pointer' }}
+                onMouseEnter={() => { if (card.bannerImage) new Image().src = card.bannerImage; }}
+              >
+                <div className="ch-card-banner">
+                  {card.bannerImage && (
+                    <img
+                      src={card.bannerImage}
+                      alt=""
+                      aria-hidden="true"
+                      className="ch-banner-img-fade"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
                   {isPastEvent ? (
                     <span className="ch-card-sold-out-tag">SOLD OUT</span>
                   ) : null}
@@ -209,12 +215,13 @@ function Chadhava() {
                     <button
                       type="button"
                       className="ch-card-readmore"
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setExpandedCards((prev) => ({
                           ...prev,
                           [card.id]: !prev[card.id],
-                        }))
-                      }
+                        }));
+                      }}
                     >
                       {expandedCards[card.id] ? 'Read less' : 'Read more'}
                     </button>
