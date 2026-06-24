@@ -115,7 +115,14 @@ function Home() {
                       </div>
                       <div className="hero-modern-images" aria-hidden="true">
                         <div className="hero-modern-image-card">
-                          <img src={slide.image} alt={slide.imageAlt} className="hero-modern-image" />
+                          <img
+                            src={slide.image}
+                            alt={slide.imageAlt}
+                            className="hero-modern-image"
+                            loading={index === 0 ? "eager" : "lazy"}
+                            decoding={index === 0 ? "sync" : "async"}
+                            fetchpriority={index === 0 ? "high" : "low"}
+                          />
                         </div>
                       </div>
                     </div>

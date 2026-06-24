@@ -86,7 +86,6 @@ function Layout({ children }) {
     useEffect(() => {
         const token = localStorage.getItem('token');
         const userStr = localStorage.getItem('user');
-        console.log('🔍 Layout auth check:', token ? 'LOGGED IN ✅' : 'GUEST');
         
         if (!token) {
             setUser(null);
@@ -126,7 +125,11 @@ function Layout({ children }) {
                     localStorage.setItem('user', JSON.stringify(u));
                     setUser(userData);
                 }
-            } catch {
+            } catch (err) {
+                if (err.response?.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                }
                 setUser(null);
             }
         };
@@ -195,7 +198,6 @@ function Layout({ children }) {
 
     // ⭐ LOGOUT FUNCTION
     const handleLogout = () => {
-        console.log('🚪 Logging out...');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);
@@ -205,7 +207,6 @@ function Layout({ children }) {
 
     // ⭐ 🔥 SIMPLIFIED: Direct token check
     const isLoggedIn = !!localStorage.getItem('token');
-    console.log('🔐 isLoggedIn:', isLoggedIn, 'user:', user); // Debug
     const SHOW_PROFILE_MENU = true; // Show profile dropdown when logged in
 
     const mobileNavItems = [
@@ -214,6 +215,8 @@ function Layout({ children }) {
         { path: '/chadhava', label: 'Chadhava', icon: 'chadhava' },
         { path: '/my-bookings', label: 'Bookings', icon: 'bookings', requiresAuth: true },
     ];
+
+    const isPujaDetailPage = /^\/puja\/.+/.test(location.pathname);
 
     const isPathActive = (targetPath) => {
         if (targetPath === '/') return location.pathname === '/';
@@ -409,6 +412,7 @@ function Layout({ children }) {
             </header>
             <main className="layout-main">{children}</main>
 
+            {!isPujaDetailPage && (
             <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
                 {mobileNavItems.map((item) => {
                     const active = isPathActive(item.path);
@@ -431,6 +435,7 @@ function Layout({ children }) {
                     );
                 })}
             </nav>
+            )}
         </div>
     );
 }

@@ -96,16 +96,6 @@ export function isPujaUserSoldOut(puja) {
   return computeUserSoldOutFromPolicyAndDate(policy, puja.eventDateRaw);
 }
 
-const enrichPujaListItem = (puja) => {
-  if (!puja || typeof puja !== "object") return puja;
-  const policy = Object.prototype.hasOwnProperty.call(puja, "soldTagPolicy")
-    ? puja.soldTagPolicy
-    : normalizeApiSoldTag(puja.soldTag);
-  const isPastEvent = computeUserSoldOutFromPolicyAndDate(policy, puja.eventDateRaw);
-  return { ...puja, soldTagPolicy: policy, isPastEvent, soldTag: isPastEvent };
-};
-
-const enrichPujaList = (list) => (Array.isArray(list) ? list : []).map(enrichPujaListItem);
 
 const sortByAvailabilityThenDate = (a, b) => {
   const dateA = Number(a?.eventDateRaw || 0);
@@ -446,46 +436,27 @@ export const PUJA_LIST = [
 ];
 
 /* =====================================================
-   FETCH PUJA LIST FROM API (WITH FALLBACK)
+   FETCH PUJA LIST FROM API
 ===================================================== */
 export const fetchPujaList = async () => {
-  try {
-    console.log("🔄 Fetching pujas from API...");
-    const response = await axiosInstance.get("/pooja");
+  const response = await axiosInstance.get("/pooja");
 
-    console.log("✅ Full API Response:", response.data);
+  let poojasArray = [];
 
-    let poojasArray = [];
-
-    if (Array.isArray(response.data)) {
-      poojasArray = response.data;
-    } else if (response.data?.poojas && Array.isArray(response.data.poojas)) {
-      poojasArray = response.data.poojas;
-    } else {
-      console.warn("⚠️ Invalid API format — using dummy data");
-      return enrichPujaList(PUJA_LIST);
-    }
-
-    const mapped = poojasArray
-      .map(mapApiPujaToPUJA_LIST)
-      .sort(sortByAvailabilityThenDate);
-
-    if (!mapped.length) {
-      console.warn("⚠️ API returned empty — using dummy data");
-      return enrichPujaList(PUJA_LIST);
-    }
-
-    console.log("✅ Using API pujas:", mapped);
-    return mapped;
-  } catch (error) {
-    console.error("❌ API failed — using dummy data");
-    return enrichPujaList([...PUJA_LIST].sort(sortByAvailabilityThenDate));
+  if (Array.isArray(response.data)) {
+    poojasArray = response.data;
+  } else if (response.data?.poojas && Array.isArray(response.data.poojas)) {
+    poojasArray = response.data.poojas;
   }
+
+  return poojasArray
+    .map(mapApiPujaToPUJA_LIST)
+    .sort(sortByAvailabilityThenDate);
 };
 
 // React hook: usePujaList provides pujas + loading + error for components
 export function usePujaList() {
-  const [pujas, setPujas] = useState(() => enrichPujaList(PUJA_LIST));
+  const [pujas, setPujas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -496,11 +467,11 @@ export function usePujaList() {
         const data = await fetchPujaList();
         if (!mounted) return;
         setPujas(data);
-        setLoading(false);
       } catch (err) {
         if (!mounted) return;
         setError(err);
-        setLoading(false);
+      } finally {
+        if (mounted) setLoading(false);
       }
     })();
     return () => {

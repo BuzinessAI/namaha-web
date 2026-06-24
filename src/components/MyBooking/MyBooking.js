@@ -27,7 +27,6 @@ function MyBookings() {
 
       const data = response.data;
       const list = data?.bookings ?? data?.data ?? (Array.isArray(data) ? data : []);
-      console.log("📋 Bookings data:", list);
       setBookings(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error("Error fetching bookings:", err);
@@ -38,7 +37,6 @@ function MyBookings() {
   };
 
   const handleViewBooking = (bookingId) => {
-    console.log("Opening booking:", bookingId);
     setSelectedBookingId(bookingId);
     setShowModal(true);
   };

@@ -14,7 +14,6 @@ function BookingDetailsModal({ bookingId, onClose }) {
       setError(null);
 
       const response = await axiosInstance.get(`/bookings/booking-details/${bookingId}`);
-      console.log("📄 Booking details:", response.data);
 
       const apiBooking = response.data.booking;
       const apiDetails = response.data.bookingDetails;

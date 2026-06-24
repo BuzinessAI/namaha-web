@@ -226,15 +226,23 @@
   max-width: 1524px;
   max-height: 762px;
   margin: 0 auto;
-  background-color: #000;
-  background-image: radial-gradient(circle at 10% 0, #fef3c7, transparent 55%),
-    radial-gradient(circle at 90% 100%, #a855f7, transparent 60%),
-    linear-gradient(120deg, #1d4ed8, #7c3aed);
+  background-color: #f3e8d8;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   overflow: hidden;
   border-radius: 12px 12px 0 0;
+}
+
+
+.ch-banner-img-fade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
 }
 
 .ch-card-body {

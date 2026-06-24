@@ -81,6 +81,30 @@ const renderRichText = (text) => {
   );
 };
 
+// --- Rating helpers ---
+const hashStr = (str) => {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+};
+const RATING_OPTIONS = [4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9];
+const getDynamicRating = (id) =>
+  RATING_OPTIONS[hashStr(String(id || 'x')) % RATING_OPTIONS.length];
+const getDynamicReviewCount = (id) =>
+  80 + (hashStr(String(id || 'x') + 'r') % 420);
+const AVATAR_PALETTE = ['#ea580c', '#7c3aed', '#0891b2', '#15803d', '#b45309', '#be123c'];
+const AVATAR_INITIALS = ['A', 'D', 'K', 'M', 'P', 'R', 'S', 'V'];
+const getRatingAvatars = (id, count = 4) => {
+  const h = hashStr(String(id || 'x') + 'av');
+  return Array.from({ length: count }, (_, i) => ({
+    initial: AVATAR_INITIALS[(h + i * 5) % AVATAR_INITIALS.length],
+    bg: AVATAR_PALETTE[(h + i * 3) % AVATAR_PALETTE.length],
+  }));
+};
+// ---
+
 const FAQS = [
   {
     question: 'What is Chadhava and how does it benefit devotees?',
@@ -361,7 +385,6 @@ function ChadhavaDetail() {
       mode: 'chadhava',
     };
 
-    console.log('Chadhava -> Billing fields being passed:', billingState);
 
     navigate('/billing', {
       state: billingState,
@@ -406,6 +429,8 @@ function ChadhavaDetail() {
                         src={detail.bannerImage}
                         alt={detail.title || 'Chadhava'}
                         className="chd-hero-image"
+                        loading="eager"
+                        decoding="async"
                       />
                     ) : (
                       <div className="chd-hero-image chd-hero-image-fallback" />
@@ -469,6 +494,41 @@ function ChadhavaDetail() {
                   Till now <strong>{detail.devoteesCount || 'many'} Devotees</strong> have participated in
                   Chadhava.
                 </p>
+                {(() => {
+                  const itemId = detail?._id || detail?.id || id;
+                  const rating = getDynamicRating(itemId);
+                  const reviewCount = getDynamicReviewCount(itemId);
+                  const avatars = getRatingAvatars(itemId);
+                  const fullStars = Math.floor(rating);
+                  const hasHalf = rating - fullStars >= 0.3;
+                  return (
+                    <div className="chd-rating-row" aria-label={`Rating: ${rating} out of 5 stars`}>
+                      <div className="chd-rating-avatars">
+                        {avatars.map((av, i) => (
+                          <span key={i} className="chd-rating-avatar" style={{ background: av.bg }}>
+                            {av.initial}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="chd-rating-meta">
+                        <span className="chd-rating-stars-wrap" aria-hidden="true">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <span
+                              key={s}
+                              className={`chd-rating-star ${
+                                s <= fullStars ? 'filled' : hasHalf && s === fullStars + 1 ? 'half' : 'empty'
+                              }`}
+                            >
+                              ★
+                            </span>
+                          ))}
+                        </span>
+                        <span className="chd-rating-score">{rating.toFixed(1)}</span>
+                        <span className="chd-rating-count">({reviewCount} ratings)</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </section>
