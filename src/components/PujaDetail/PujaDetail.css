@@ -471,14 +471,10 @@
   height: 28px;
   border-radius: 50%;
   border: 2px solid #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #fff;
   margin-left: -8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+  object-fit: cover;
+  display: block;
 }
 
 .pd-rating-avatars .pd-rating-avatar:first-child {

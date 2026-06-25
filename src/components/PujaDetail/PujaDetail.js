@@ -100,13 +100,10 @@ const getDynamicRating = (id) =>
 const getDynamicReviewCount = (id) =>
   80 + (hashStr(String(id || "x") + "r") % 420);
 
-const AVATAR_PALETTE = ["#ea580c", "#7c3aed", "#0891b2", "#15803d", "#b45309", "#be123c"];
-const AVATAR_INITIALS = ["A", "D", "K", "M", "P", "R", "S", "V"];
 const getRatingAvatars = (id, count = 4) => {
   const h = hashStr(String(id || "x") + "av");
   return Array.from({ length: count }, (_, i) => ({
-    initial: AVATAR_INITIALS[(h + i * 5) % AVATAR_INITIALS.length],
-    bg: AVATAR_PALETTE[(h + i * 3) % AVATAR_PALETTE.length],
+    src: `https://i.pravatar.cc/40?img=${((h + i * 7) % 70) + 1}`,
   }));
 };
 // ---
@@ -546,9 +543,7 @@ function PujaDetail() {
                 <div className="pd-rating-row" aria-label={`Rating: ${rating} out of 5 stars`}>
                   <div className="pd-rating-avatars">
                     {avatars.map((av, i) => (
-                      <span key={i} className="pd-rating-avatar" style={{ background: av.bg }}>
-                        {av.initial}
-                      </span>
+                      <img key={i} src={av.src} alt="" aria-hidden="true" className="pd-rating-avatar" />
                     ))}
                   </div>
                   <div className="pd-rating-meta">
