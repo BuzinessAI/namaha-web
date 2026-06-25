@@ -94,13 +94,10 @@ const getDynamicRating = (id) =>
   RATING_OPTIONS[hashStr(String(id || 'x')) % RATING_OPTIONS.length];
 const getDynamicReviewCount = (id) =>
   80 + (hashStr(String(id || 'x') + 'r') % 420);
-const AVATAR_PALETTE = ['#ea580c', '#7c3aed', '#0891b2', '#15803d', '#b45309', '#be123c'];
-const AVATAR_INITIALS = ['A', 'D', 'K', 'M', 'P', 'R', 'S', 'V'];
 const getRatingAvatars = (id, count = 4) => {
   const h = hashStr(String(id || 'x') + 'av');
   return Array.from({ length: count }, (_, i) => ({
-    initial: AVATAR_INITIALS[(h + i * 5) % AVATAR_INITIALS.length],
-    bg: AVATAR_PALETTE[(h + i * 3) % AVATAR_PALETTE.length],
+    src: `https://i.pravatar.cc/40?img=${((h + i * 7) % 70) + 1}`,
   }));
 };
 // ---
@@ -505,9 +502,7 @@ function ChadhavaDetail() {
                     <div className="chd-rating-row" aria-label={`Rating: ${rating} out of 5 stars`}>
                       <div className="chd-rating-avatars">
                         {avatars.map((av, i) => (
-                          <span key={i} className="chd-rating-avatar" style={{ background: av.bg }}>
-                            {av.initial}
-                          </span>
+                          <img key={i} src={av.src} alt="" aria-hidden="true" className="chd-rating-avatar" />
                         ))}
                       </div>
                       <div className="chd-rating-meta">
