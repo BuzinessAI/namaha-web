@@ -4,6 +4,8 @@ import axiosInstance from "../../lib/instance";
 import Footer from "../Footer/Footer";
 import "./BillingPage.css";
 
+const CHADHAVA_PRASADAM_PRICE = 250;
+
 function BillingPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -145,12 +147,21 @@ function BillingPage() {
 
   const passedGrandTotal = parseAmount(grandTotal);
 
+  const [prasadam, setPrasadam] = useState(location.state?.prasadam ?? false);
+
+  /** Chadhava flow: prasadam is a paid add-on (₹250); Puja flow: prasadam remains free. */
+  const prasadamAmount = useMemo(
+    () => (isChadhavaFlow && prasadam ? CHADHAVA_PRASADAM_PRICE : 0),
+    [isChadhavaFlow, prasadam]
+  );
+
   const subtotal = useMemo(() => {
     if (isChadhavaFlow) {
-      return passedGrandTotal > 0 ? passedGrandTotal : packagePrice + computedAddonsTotal;
+      const base = passedGrandTotal > 0 ? passedGrandTotal : packagePrice + computedAddonsTotal;
+      return base + prasadamAmount;
     }
     return packagePrice + computedAddonsTotal;
-  }, [isChadhavaFlow, passedGrandTotal, packagePrice, computedAddonsTotal]);
+  }, [isChadhavaFlow, passedGrandTotal, packagePrice, computedAddonsTotal, prasadamAmount]);
   const resolvedSelectedPackage = useMemo(
     () =>
       isChadhavaFlow
@@ -169,7 +180,6 @@ function BillingPage() {
   const [couponError, setCouponError] = useState("");
   const [couponInput, setCouponInput] = useState(location.state?.couponInput ?? "");
   const [couponLoading, setCouponLoading] = useState(false);
-  const [prasadam, setPrasadam] = useState(location.state?.prasadam ?? false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [invoiceData, setInvoiceData] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "error" });
@@ -189,10 +199,6 @@ function BillingPage() {
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    if (isChadhavaFlow && prasadam) setPrasadam(false);
-  }, [isChadhavaFlow, prasadam]);
 
   const couponApplied = appliedCoupon != null;
   const isSpecialCouponApplied = couponApplied && Boolean(appliedCoupon?.specialCoupon);
@@ -446,7 +452,7 @@ function BillingPage() {
         selectedChadhava: selectedChadhava || null,
         addons: resolvedAddons,
         addonsTotal: computedAddonsTotal,
-        ...(prasadam && { prasadam: true }),
+        ...(prasadam && { prasadam: true, prasadamAmount }),
       };
       pendingSaveInFlightRef.current = true;
       const req = axiosInstance
@@ -503,6 +509,7 @@ function BillingPage() {
     computedAddonsTotal,
     resolvedAddons,
     prasadam,
+    prasadamAmount,
     bookingBasePath,
     authToken,
     composedAddress,
@@ -625,7 +632,7 @@ function BillingPage() {
         addons: resolvedAddons,
         addonsTotal: computedAddonsTotal,
 
-        ...(prasadam && { prasadam: true }),
+        ...(prasadam && { prasadam: true, prasadamAmount }),
       };
 
       const res = await axiosInstance.post(bookingBasePath, payload, {
@@ -762,6 +769,7 @@ function BillingPage() {
     addons: resolvedAddons,
     addonsTotal: computedAddonsTotal,
     prasadam,
+    prasadamAmount,
   });
 
   const handlePostPaymentSuccess = async ({ finalOrderId, payload }) => {
@@ -809,6 +817,8 @@ function BillingPage() {
       packagePrice: selectedPackage?.price,
       addons: resolvedAddons || [],
       addonsTotal: computedAddonsTotal,
+      prasadam,
+      prasadamAmount,
       coupon: payload.coupon,
       couponCode: payload.couponCode,
       discountAmount: payload.discountAmount || discountAmount,
@@ -1066,6 +1076,8 @@ function BillingPage() {
       packageName,
       packagePrice,
       addons,
+      prasadam,
+      prasadamAmount,
       coupon,
       couponCode,
       discountAmount,
@@ -1084,6 +1096,11 @@ function BillingPage() {
                 `<tr><td style="padding:8px 12px; border-bottom:1px solid #e5e7eb;">${a.name || "-"}</td><td style="padding:8px 12px; border-bottom:1px solid #e5e7eb; text-align:center;">${a.quantity || 1}</td><td style="padding:8px 12px; border-bottom:1px solid #e5e7eb; text-align:right;">₹${a.total || a.price || 0}</td></tr>`
             )
             .join("")
+        : "";
+
+    const prasadamRow =
+      prasadam && (prasadamAmount || 0) > 0
+        ? `<tr><td style="padding:8px 12px; border-bottom:1px solid #e5e7eb;">Prasadam</td><td style="padding:8px 12px; border-bottom:1px solid #e5e7eb; text-align:center;">1</td><td style="padding:8px 12px; border-bottom:1px solid #e5e7eb; text-align:right;">₹${prasadamAmount}</td></tr>`
         : "";
 
     const couponRow =
@@ -1169,6 +1186,7 @@ function BillingPage() {
                 <tbody>
                   ${pkgRow}
                   ${addonsRows}
+                  ${prasadamRow}
                   ${couponRow}
                 </tbody>
               </table>
@@ -1284,6 +1302,9 @@ function BillingPage() {
             <p><strong>Puja:</strong> {invoiceData.pujaName}</p>
             <p><strong>Date:</strong> {invoiceData.pujaDate || "-"}</p>
             <p><strong>Package:</strong> {invoiceData.packageName} ({invoiceData.packagePrice})</p>
+            {invoiceData.prasadam && invoiceData.prasadamAmount > 0 && (
+              <p><strong>Prasadam:</strong> ₹{invoiceData.prasadamAmount}</p>
+            )}
             <p><strong>Grand Total:</strong> ₹{invoiceData.grandTotal}</p>
           </div>
 
@@ -1472,21 +1493,34 @@ function BillingPage() {
             </div>
           )}
 
-          {/* Prasadam: puja flow only (not shown for Chadhava) */}
-          {!isChadhavaFlow ? (
-            <label className="billing-prasadam-option">
-              <input
-                type="checkbox"
-                checked={prasadam}
-                disabled={isSpecialCouponApplied}
-                onChange={(e) => setPrasadam(e.target.checked)}
-              />
-              <span>Prasadam (Free)</span>
-            </label>
+          {/* Prasadam: free for Puja, ₹250 add-on for Chadhava */}
+          <label className="billing-prasadam-option">
+            <input
+              type="checkbox"
+              checked={prasadam}
+              disabled={isSpecialCouponApplied}
+              onChange={(e) => setPrasadam(e.target.checked)}
+            />
+            <span>
+              {isChadhavaFlow
+                ? `Prasadam (₹${CHADHAVA_PRASADAM_PRICE})`
+                : "Prasadam (Free)"}
+            </span>
+          </label>
+          {isSpecialCouponApplied ? (
+            <p className="billing-prasadam-note">
+              {isChadhavaFlow
+                ? "For this coupon, prasadam is not available."
+                : "For this coupon, prasadam is not free."}
+            </p>
           ) : null}
-          {!isChadhavaFlow && isSpecialCouponApplied ? (
-            <p className="billing-prasadam-note">For this coupon, prasadam is not free.</p>
-          ) : null}
+
+          {prasadamAmount > 0 && (
+            <div className="addons-total-row">
+              <span className="addons-total-label">Prasadam:</span>
+              <span className="addons-total-price">₹{prasadamAmount}</span>
+            </div>
+          )}
 
           {/* ✅ GRAND TOTAL */}
           <div className="grand-total-row">
