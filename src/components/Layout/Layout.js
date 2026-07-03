@@ -217,6 +217,7 @@ function Layout({ children }) {
     ];
 
     const isPujaDetailPage = /^\/puja\/.+/.test(location.pathname);
+    const isBillingPage = location.pathname.startsWith('/billing');
 
     const isPathActive = (targetPath) => {
         if (targetPath === '/') return location.pathname === '/';
@@ -412,7 +413,7 @@ function Layout({ children }) {
             </header>
             <main className="layout-main">{children}</main>
 
-            {!isPujaDetailPage && (
+            {!isPujaDetailPage && !isBillingPage && (
             <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
                 {mobileNavItems.map((item) => {
                     const active = isPathActive(item.path);

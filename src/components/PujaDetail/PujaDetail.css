@@ -1951,11 +1951,7 @@
   }
 
   .pd-cta {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    padding: 14px 20px;
-    font-size: 0.95rem;
+    display: none;
   }
 
   .pd-section-nav {

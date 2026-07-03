@@ -212,6 +212,40 @@
     .billing-left-message-text {
       font-size: 13px;
     }
+
+    .billing-right {
+      padding-bottom: 90px;
+    }
+
+    .pay-button-desktop {
+      display: none;
+    }
+  }
+
+  /* Mobile sticky bottom bar for Pay button — white background bar, matches
+     PujaDetail's .pd-mobile-sticky-cta pattern */
+  .billing-mobile-sticky-cta {
+    display: none;
+  }
+
+  @media (max-width: 900px) {
+    .billing-mobile-sticky-cta {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 500;
+      background: #fff;
+      border-top: 1px solid #e5e7eb;
+      padding: 10px 16px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .pay-button-mobile {
+      margin-top: 0;
+    }
   }
 
   /* Small mobile (320px, 375px, 425px) - image 100% width */

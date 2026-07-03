@@ -1618,12 +1618,24 @@ function BillingPage() {
         <button
           onClick={handlePayment}
           disabled={loading}
-          className="pay-button"
+          className="pay-button pay-button-desktop"
         >
           {loading ? "Processing..." : `Pay ₹${finalPayable}`}
         </button>
       </div>
     </div>
+
+    {/* Mobile sticky bottom bar — white background, matches PujaDetail sticky CTA style */}
+    <div className="billing-mobile-sticky-cta">
+      <button
+        onClick={handlePayment}
+        disabled={loading}
+        className="pay-button pay-button-mobile"
+      >
+        {loading ? "Processing..." : `Pay ₹${finalPayable}`}
+      </button>
+    </div>
+
     <Footer />
   </>
   );
